@@ -329,7 +329,6 @@ class _EventsPageState extends State<EventsPage>
 
   Widget showEventsTab() {
     final videoUrl = Provider.of<AppState>(context, listen: false).videoUrl;
-    final isFront = Provider.of<AppState>(context, listen: false).isFront;
     final selectedEventIndex =
         Provider.of<AppState>(context, listen: false).selectedEventIndex;
 
@@ -385,7 +384,7 @@ class _EventsPageState extends State<EventsPage>
             children: [
               Padding(padding: EdgeInsets.only(left: 10)),
               Text(
-                  "Recoded events ${_formattedDate(Provider.of<AppState>(context, listen: false).selectedDay)}"),
+                  "Recorded events ${_formattedDate(Provider.of<AppState>(context, listen: false).selectedDay)}"),
               Expanded(
                   child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 1),
@@ -432,7 +431,7 @@ class _EventsPageState extends State<EventsPage>
                             selected:
                                 (index == selectedEventIndex) ? true : false,
                             onLongPress: () {
-                              var videoName = (isFront)
+                              var videoName = (_isFront)
                                   ? (_eventsForDay[index].videos!.length > 0)
                                       ? _eventsForDay[index].videos![0].name!
                                       : ""
@@ -491,6 +490,8 @@ class _EventsPageState extends State<EventsPage>
   Widget showMapTab() {
     final videoUrl = Provider.of<AppState>(context, listen: false).videoUrl;
     final trackList = Provider.of<AppState>(context, listen: false).trackList;
+    final selectedEventIndex =
+        Provider.of<AppState>(context, listen: false).selectedEventIndex;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2.0),
@@ -499,7 +500,36 @@ class _EventsPageState extends State<EventsPage>
           Row(
             children: [
               Padding(padding: EdgeInsets.only(left: 10)),
-              Text("${cameraName}"),
+              Expanded(child: Text("${cameraName}")),
+              if (selectedEventIndex != -1) Text("Front: "),
+              if (selectedEventIndex != -1)
+                CupertinoSwitch(
+                  value: _isFront,
+                  onChanged: (value) {
+                    Provider.of<AppState>(context, listen: false).isFront =
+                        value;
+
+                    var videoName = (value)
+                        ? (_eventsForDay[selectedEventIndex].videos!.length > 0)
+                            ? _eventsForDay[selectedEventIndex].videos![0].name!
+                            : ""
+                        : (_eventsForDay[selectedEventIndex].videos!.length > 1)
+                            ? _eventsForDay[selectedEventIndex].videos![1].name!
+                            : "";
+                    _eventsBloc?.add(GetRtmpsSmilEvent(
+                      host: Provider.of<AppState>(context, listen: false)
+                          .cloudUrl,
+                      session_id: Provider.of<AppState>(context, listen: false)
+                          .session_id,
+                      videoEventId: _eventsForDay[selectedEventIndex].id!,
+                      videoName: videoName,
+                    ));
+
+                    setState(() {
+                      _isFront = value;
+                    });
+                  },
+                ),
             ],
           ),
           if (videoUrl != "")
@@ -555,6 +585,8 @@ class _EventsPageState extends State<EventsPage>
     DateTime lastDay,
   ) {
     final videoUrl = Provider.of<AppState>(context, listen: false).videoUrl;
+    final selectedEventIndex =
+        Provider.of<AppState>(context, listen: false).selectedEventIndex;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2.0),
@@ -563,7 +595,36 @@ class _EventsPageState extends State<EventsPage>
           Row(
             children: [
               Padding(padding: EdgeInsets.only(left: 10)),
-              Text("${cameraName}"),
+              Expanded(child: Text("${cameraName}")),
+              if (selectedEventIndex != -1) Text("Front: "),
+              if (selectedEventIndex != -1)
+                CupertinoSwitch(
+                  value: _isFront,
+                  onChanged: (value) {
+                    Provider.of<AppState>(context, listen: false).isFront =
+                        value;
+
+                    var videoName = (value)
+                        ? (_eventsForDay[selectedEventIndex].videos!.length > 0)
+                            ? _eventsForDay[selectedEventIndex].videos![0].name!
+                            : ""
+                        : (_eventsForDay[selectedEventIndex].videos!.length > 1)
+                            ? _eventsForDay[selectedEventIndex].videos![1].name!
+                            : "";
+                    _eventsBloc?.add(GetRtmpsSmilEvent(
+                      host: Provider.of<AppState>(context, listen: false)
+                          .cloudUrl,
+                      session_id: Provider.of<AppState>(context, listen: false)
+                          .session_id,
+                      videoEventId: _eventsForDay[selectedEventIndex].id!,
+                      videoName: videoName,
+                    ));
+
+                    setState(() {
+                      _isFront = value;
+                    });
+                  },
+                ),
             ],
           ),
           if (videoUrl != "")
