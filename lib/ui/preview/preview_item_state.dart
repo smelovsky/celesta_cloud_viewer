@@ -41,9 +41,12 @@ class PreviewItemState {
   PreviewItemState copyWithStateAndMediaUrl({
     required PreviewItemScreenState screenState,
     required String mediaUrl,
+    required String errorMessage,
   }) {
     return PreviewItemState(
-        screenState: screenState, mediaUrl: mediaUrl, errorMessage: "");
+        screenState: screenState,
+        mediaUrl: mediaUrl,
+        errorMessage: errorMessage);
   }
 
   PreviewItemState copyWithStateAndError({

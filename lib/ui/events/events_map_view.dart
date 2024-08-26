@@ -45,6 +45,7 @@ class _EventsMap extends State<EventsMap> {
               child: CircularProgressIndicator(),
             ),
             osmOption: OSMOption(
+              showContributorBadgeForOSM: false,
               enableRotationByGesture: true,
               zoomOption: ZoomOption(
                 initZoom: 14,

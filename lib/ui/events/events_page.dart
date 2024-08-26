@@ -1,6 +1,5 @@
 import 'dart:collection';
 
-import 'package:celesta_cloud_viewer/ui/events/utils.dart';
 import 'package:data_table_2/data_table_2.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -11,7 +10,7 @@ import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../../app_state.dart';
 import '../../freezed/responses/cloud_response.dart';
-import '../preview/player/video_player.dart';
+import 'event_player.dart';
 import 'events_bloc.dart';
 import 'package:intl/intl.dart';
 
@@ -31,27 +30,17 @@ class _EventsPageState extends State<EventsPage>
     with RestorationMixin, OSMMixinObserver {
   EventsBloc? _eventsBloc;
 
-  String url = "";
-  String login = "";
-  String password = "";
   String cameraName = "";
-  String session_id = "";
-  String device_id = "";
 
   final RestorableBool _obscureText = RestorableBool(true);
 
-  bool isEventsEnable = false;
-  bool isMapEnable = true;
-  bool isCalendarEnable = true;
-
-  DateTime _selectedDay = DateTime.now();
-  DateTime _focusedDay = DateTime.now();
+  int _eventsPageTbIndex = 0;
 
   double _currentSliderValue = 0.0;
 
-  List<VideoEvent> _eventList = [];
-  List<GeoPoint> _trackList = [];
   List<VideoEvent> _eventsForDay = [];
+
+  String _errorMessage = "";
 
   int _selector_index = 0;
 
@@ -60,11 +49,13 @@ class _EventsPageState extends State<EventsPage>
   late MapController mapController;
   var isMapControllerInited = false;
 
+  bool _isFront = true;
+
   @override
   void dispose() {
-    if (isMapControllerInited) {
-      mapController.dispose();
-    }
+    //if (isMapControllerInited) {
+    //  mapController.dispose();
+    //}
 
     super.dispose();
   }
@@ -75,39 +66,36 @@ class _EventsPageState extends State<EventsPage>
 
     _eventsBloc = BlocProvider.of<EventsBloc>(context);
 
-    url = Provider.of<AppState>(context, listen: false).cloudUrl;
-    login = Provider.of<AppState>(context, listen: false).cloudLogin;
-    password = Provider.of<AppState>(context, listen: false).cloudPassword;
     cameraName = Provider.of<AppState>(context, listen: false).cameraName;
-    session_id = Provider.of<AppState>(context, listen: false).session_id;
 
-    print("initState EventsPageState ${cameraName} ${_trackList.length}");
-
-    GeoPoint initPosition = (_trackList.length > 0)
-        ? GeoPoint(
-            latitude: _trackList[_selector_index].latitude,
-            longitude: _trackList[_selector_index].longitude)
-        : GeoPoint(latitude: 43.3197033, longitude: 132.1192263);
-
-    mapController = MapController(
-      initPosition: initPosition,
-    );
+    _isFront = Provider.of<AppState>(context, listen: false).isFront;
+    _eventsPageTbIndex =
+        Provider.of<AppState>(context, listen: false).eventsPageTbIndex;
 
     final isEventsInited =
         Provider.of<AppState>(context, listen: false).isEventsInited;
+    final session_id = Provider.of<AppState>(context, listen: false).session_id;
+
+    mapController = MapController(
+      initPosition: GeoPoint(latitude: 43.3197033, longitude: 132.1192263),
+    );
+
+    if (Provider.of<AppState>(context, listen: false).eventsPageTbIndex == 1) {
+      _eventsPageTbIndex = 0;
+      Provider.of<AppState>(context, listen: false).eventsPageTbIndex == 0;
+    }
 
     if (!isEventsInited) {
       _eventsBloc!.add(ConnectEventsEvent(
-        host: url,
-        login: login,
-        password: password,
+        host: Provider.of<AppState>(context, listen: false).cloudUrl,
+        login: Provider.of<AppState>(context, listen: false).cloudLogin,
+        password: Provider.of<AppState>(context, listen: false).cloudPassword,
         cameraName: cameraName,
         session_id: session_id,
-        device_id: device_id,
       ));
 
       Provider.of<AppState>(context, listen: false).isEventsInited = true;
-    }
+    } else {}
   }
 
   @override
@@ -120,21 +108,23 @@ class _EventsPageState extends State<EventsPage>
 
   @override
   Future<void> mapIsReady(bool isReady) async {
+    print("mapIsReady: ${isReady}");
     if (isReady) {
       isMapControllerInited = true;
 
-      if (_trackList.length > 0) {
+      final trackList = Provider.of<AppState>(context, listen: false).trackList;
+      print("trackList: ${trackList.length}");
+
+      if (trackList.length > 0) {
         GeoPoint position = GeoPoint(
-            latitude: _trackList[_selector_index].latitude,
-            longitude: _trackList[_selector_index].longitude);
+            latitude: trackList[_selector_index].latitude,
+            longitude: trackList[_selector_index].longitude);
 
         mapController.changeLocation(position);
       }
 
-      print("_trackList: ${_trackList.length}");
-
       mapController.drawRoadManually(
-          _trackList,
+          trackList,
           RoadOption(
             zoomInto: true,
             roadColor: Colors.green,
@@ -146,13 +136,16 @@ class _EventsPageState extends State<EventsPage>
   List<String> _getEventsForDay(DateTime day) {
     List<String> events = [];
 
-    _eventList.forEach((event) {
-      DateTime dateTime = DateTime.fromMillisecondsSinceEpoch(event.timestamp);
+    //Provider.of<AppState>(context, listen: false).selectedEventIndex = -1;
+
+    final eventList = Provider.of<AppState>(context, listen: false).eventList;
+    eventList.forEach((event) {
+      DateTime dateTime = DateTime.fromMillisecondsSinceEpoch(event.timestamp!);
 
       if (dateTime.day == day.day &&
           dateTime.month == day.month &&
           dateTime.year == day.year) {
-        events.add(event.meta.trigger);
+        events.add(event.meta!.trigger!);
       }
     });
 
@@ -160,13 +153,11 @@ class _EventsPageState extends State<EventsPage>
   }
 
   _onDaySelected(DateTime selectedDay, DateTime focusedDay) {
-    print("_onDaySelected");
+    Provider.of<AppState>(context, listen: false).selectedDay = selectedDay;
+    Provider.of<AppState>(context, listen: false).selectedEventIndex = -1;
+
     setState(() {
-      _focusedDay = focusedDay;
-      _selectedDay = selectedDay;
-
       _applyFilter();
-
       _events = _eventsForDay.length;
     });
   }
@@ -180,20 +171,23 @@ class _EventsPageState extends State<EventsPage>
         Provider.of<AppState>(context, listen: false).stopsEventsFilter;
     final other =
         Provider.of<AppState>(context, listen: false).otherEventsFilter;
+    final selectedDay =
+        Provider.of<AppState>(context, listen: false).selectedDay;
+    final eventList = Provider.of<AppState>(context, listen: false).eventList;
 
     _eventsForDay = [];
-    _eventList.forEach((event) {
-      DateTime dateTime = DateTime.fromMillisecondsSinceEpoch(event.timestamp);
+    eventList.forEach((event) {
+      DateTime dateTime = DateTime.fromMillisecondsSinceEpoch(event.timestamp!);
 
-      if (dateTime.day == _selectedDay.day &&
-          dateTime.month == _selectedDay.month &&
-          dateTime.year == _selectedDay.year &&
+      if (dateTime.day == selectedDay.day &&
+          dateTime.month == selectedDay.month &&
+          dateTime.year == selectedDay.year &&
           (other == true ||
-              adas == true && event.meta.trigger == "ADAS" ||
-              imu == true && event.meta.trigger == "INU" ||
-              gps == true && event.meta.trigger == "GPS" ||
-              dms == true && event.meta.trigger == "DMS" ||
-              stops == true && event.meta.trigger == "STOPS")) {
+              adas == true && event.meta?.trigger == "ADAS" ||
+              imu == true && event.meta?.trigger == "INU" ||
+              gps == true && event.meta?.trigger == "GPS" ||
+              dms == true && event.meta?.trigger == "DMS" ||
+              stops == true && event.meta?.trigger == "STOPS")) {
         _eventsForDay.add(event);
       }
     });
@@ -221,6 +215,8 @@ class _EventsPageState extends State<EventsPage>
         }
       },
       builder: (context, eventsState) {
+        print("eventsState.viewState: ${eventsState.viewState}");
+
         switch (eventsState.viewState) {
           case EventsViewState.initial:
           case EventsViewState.aborted:
@@ -230,13 +226,32 @@ class _EventsPageState extends State<EventsPage>
           case EventsViewState.inprogress:
             return _inprogressView();
 
-          case EventsViewState.success:
-            _eventList = eventsState.eventList;
-            _trackList = eventsState.trackList;
+          case EventsViewState.video:
+            Provider.of<AppState>(context, listen: false).videoUrl =
+                eventsState.videoUrl;
 
             _applyFilter();
 
-            return _successView(eventsState.mediaUrl, eventsState.errorMessage);
+            return _successView();
+
+          case EventsViewState.success:
+            Provider.of<AppState>(context, listen: false).eventList =
+                eventsState.eventList;
+            Provider.of<AppState>(context, listen: false).session_id =
+                eventsState.authToken.session_id;
+
+            Provider.of<AppState>(context, listen: false).trackList =
+                eventsState.trackList;
+
+            Provider.of<AppState>(context, listen: false).videoUrl = "";
+            Provider.of<AppState>(context, listen: false).selectedEventIndex =
+                -1;
+
+            _errorMessage = eventsState.errorMessage;
+
+            _applyFilter();
+
+            return _successView();
 
           default:
             return Container();
@@ -251,12 +266,13 @@ class _EventsPageState extends State<EventsPage>
         child: Text('Connect'),
         onPressed: () {
           _eventsBloc!.add(ConnectEventsEvent(
-            host: url,
-            login: login,
-            password: password,
+            host: Provider.of<AppState>(context, listen: false).cloudUrl,
+            login: Provider.of<AppState>(context, listen: false).cloudLogin,
+            password:
+                Provider.of<AppState>(context, listen: false).cloudPassword,
             cameraName: cameraName,
-            session_id: session_id,
-            device_id: device_id,
+            session_id:
+                Provider.of<AppState>(context, listen: false).session_id,
           ));
         });
   }
@@ -298,21 +314,25 @@ class _EventsPageState extends State<EventsPage>
     );
   }
 
-  Widget _successView(String mediaUrl, String errorMessage) {
-    if (!isEventsEnable) {
-      return showEventsTab(mediaUrl, errorMessage);
-    } else if (!isMapEnable) {
-      return showMapTab(mediaUrl, errorMessage);
+  Widget _successView() {
+    final eventsPageTbIndex = _eventsPageTbIndex;
+    if (_eventsPageTbIndex == 0) {
+      return showEventsTab();
+    } else if (_eventsPageTbIndex == 1) {
+      return showMapTab();
     } else
       return showCalendarTab(
-        mediaUrl,
-        errorMessage,
         DateTime.utc(2010, 10, 16),
         DateTime.utc(2030, 3, 14),
       );
   }
 
-  Widget showEventsTab(String mediaUrl, String errorMessage) {
+  Widget showEventsTab() {
+    final videoUrl = Provider.of<AppState>(context, listen: false).videoUrl;
+    final isFront = Provider.of<AppState>(context, listen: false).isFront;
+    final selectedEventIndex =
+        Provider.of<AppState>(context, listen: false).selectedEventIndex;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2.0),
       child: Column(
@@ -320,14 +340,43 @@ class _EventsPageState extends State<EventsPage>
           Row(
             children: [
               Padding(padding: EdgeInsets.only(left: 10)),
-              Text("${cameraName}"),
+              Expanded(child: Text("${cameraName}")),
+              if (selectedEventIndex != -1) Text("Front: "),
+              if (selectedEventIndex != -1)
+                CupertinoSwitch(
+                  value: _isFront,
+                  onChanged: (value) {
+                    Provider.of<AppState>(context, listen: false).isFront =
+                        value;
+
+                    var videoName = (value)
+                        ? (_eventsForDay[selectedEventIndex].videos!.length > 0)
+                            ? _eventsForDay[selectedEventIndex].videos![0].name!
+                            : ""
+                        : (_eventsForDay[selectedEventIndex].videos!.length > 1)
+                            ? _eventsForDay[selectedEventIndex].videos![1].name!
+                            : "";
+                    _eventsBloc?.add(GetRtmpsSmilEvent(
+                      host: Provider.of<AppState>(context, listen: false)
+                          .cloudUrl,
+                      session_id: Provider.of<AppState>(context, listen: false)
+                          .session_id,
+                      videoEventId: _eventsForDay[selectedEventIndex].id!,
+                      videoName: videoName,
+                    ));
+
+                    setState(() {
+                      _isFront = value;
+                    });
+                  },
+                ),
             ],
           ),
-          if (mediaUrl != "")
-            VideoPlayer(
-                mediaUrl: mediaUrl, autoPlay: true, isModalDialog: false)
+          if (videoUrl != "")
+            //if (selectedEventIndex != -1)
+            EventPlayer(mediaUrl: videoUrl)
           else
-            Placeholder(errorMessage),
+            _errorMessageBox(_errorMessage),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2.0),
           ),
@@ -335,7 +384,8 @@ class _EventsPageState extends State<EventsPage>
           Row(
             children: [
               Padding(padding: EdgeInsets.only(left: 10)),
-              Text("Recoded events ${_formattedDate(_selectedDay)}"),
+              Text(
+                  "Recoded events ${_formattedDate(Provider.of<AppState>(context, listen: false).selectedDay)}"),
               Expanded(
                   child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 1),
@@ -359,6 +409,8 @@ class _EventsPageState extends State<EventsPage>
           Flexible(
               child: Container(
             child: DataTable2(
+                onSelectAll: (b) {},
+                showCheckboxColumn: false,
                 headingRowHeight: 30,
                 dataRowHeight: 30,
                 border: const TableBorder(
@@ -376,26 +428,53 @@ class _EventsPageState extends State<EventsPage>
                 ],
                 rows: List<DataRow>.generate(
                     _eventsForDay.length,
-                    (index) => DataRow(onLongPress: () {}, cells: [
-                          DataCell(Text("${_eventsForDay[index].meta.trigger}",
-                              overflow: TextOverflow.ellipsis)),
-                          DataCell(Text(
-                              "${_eventsForDay[index].meta.trigger_subtype}",
-                              overflow: TextOverflow.ellipsis)),
-                          DataCell(Text(
-                              "${_formattedTime(_eventsForDay[index].timestamp)}",
-                              overflow: TextOverflow.ellipsis)),
-                          DataCell(Text(
-                              "${_eventsForDay[index].meta.navi.s} kph",
-                              overflow: TextOverflow.ellipsis)),
-                        ]))),
+                    (index) => DataRow(
+                            selected:
+                                (index == selectedEventIndex) ? true : false,
+                            onLongPress: () {
+                              var videoName = (isFront)
+                                  ? (_eventsForDay[index].videos!.length > 0)
+                                      ? _eventsForDay[index].videos![0].name!
+                                      : ""
+                                  : (_eventsForDay[index].videos!.length > 1)
+                                      ? _eventsForDay[index].videos![1].name!
+                                      : "";
+                              _eventsBloc?.add(GetRtmpsSmilEvent(
+                                host: Provider.of<AppState>(context,
+                                        listen: false)
+                                    .cloudUrl,
+                                session_id: Provider.of<AppState>(context,
+                                        listen: false)
+                                    .session_id,
+                                videoEventId: _eventsForDay[index].id!,
+                                videoName: videoName,
+                              ));
+
+                              Provider.of<AppState>(context, listen: false)
+                                  .selectedEventIndex = index;
+                            },
+                            cells: [
+                              DataCell(
+                                Text("${_eventsForDay[index].meta?.trigger}",
+                                    overflow: TextOverflow.ellipsis),
+                              ),
+                              DataCell(Text(
+                                  "${_eventsForDay[index].meta?.trigger_subtype}",
+                                  overflow: TextOverflow.ellipsis)),
+                              DataCell(Text(
+                                  "${_formattedTime(_eventsForDay[index].timestamp!)}",
+                                  overflow: TextOverflow.ellipsis)),
+                              DataCell(Text(
+                                  "${_eventsForDay[index].meta?.navi?.s} kph",
+                                  overflow: TextOverflow.ellipsis)),
+                            ]))),
           )),
         ],
       ),
     );
   }
 
-  Widget Placeholder(String errorMessage) {
+  Widget _errorMessageBox(String errorMessage) {
     return Container(
         decoration: BoxDecoration(
           color: Colors.grey,
@@ -409,7 +488,10 @@ class _EventsPageState extends State<EventsPage>
         ));
   }
 
-  Widget showMapTab(String mediaUrl, String errorMessage) {
+  Widget showMapTab() {
+    final videoUrl = Provider.of<AppState>(context, listen: false).videoUrl;
+    final trackList = Provider.of<AppState>(context, listen: false).trackList;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2.0),
       child: Column(
@@ -420,11 +502,10 @@ class _EventsPageState extends State<EventsPage>
               Text("${cameraName}"),
             ],
           ),
-          if (mediaUrl != "")
-            VideoPlayer(
-                mediaUrl: mediaUrl, autoPlay: true, isModalDialog: false)
+          if (videoUrl != "")
+            EventPlayer(mediaUrl: videoUrl)
           else
-            Placeholder(errorMessage),
+            _errorMessageBox(_errorMessage),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2.0),
           ),
@@ -446,11 +527,11 @@ class _EventsPageState extends State<EventsPage>
               ],
             ),
           ),
-          if (_trackList.length > 0)
+          if (trackList.length > 0)
             Slider(
               value: _currentSliderValue,
-              max: _trackList.length.toDouble() - 1,
-              divisions: _eventList.length,
+              max: trackList.length.toDouble() - 1,
+              divisions: trackList.length,
               //label: "GNSS track selection:",
               onChanged: (double value) {
                 setState(() {
@@ -458,8 +539,8 @@ class _EventsPageState extends State<EventsPage>
                   _selector_index = value.toInt();
 
                   GeoPoint position = GeoPoint(
-                      latitude: _trackList[_selector_index].latitude,
-                      longitude: _trackList[_selector_index].longitude);
+                      latitude: trackList[_selector_index].latitude,
+                      longitude: trackList[_selector_index].longitude);
                   mapController.changeLocation(position);
                 });
               },
@@ -470,11 +551,11 @@ class _EventsPageState extends State<EventsPage>
   }
 
   Widget showCalendarTab(
-    String mediaUrl,
-    String errorMessage,
     DateTime firstDay,
     DateTime lastDay,
   ) {
+    final videoUrl = Provider.of<AppState>(context, listen: false).videoUrl;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2.0),
       child: Column(
@@ -485,11 +566,10 @@ class _EventsPageState extends State<EventsPage>
               Text("${cameraName}"),
             ],
           ),
-          if (mediaUrl != "")
-            VideoPlayer(
-                mediaUrl: mediaUrl, autoPlay: true, isModalDialog: false)
+          if (videoUrl != "")
+            EventPlayer(mediaUrl: videoUrl)
           else
-            Placeholder(errorMessage),
+            _errorMessageBox(_errorMessage),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2.0),
           ),
@@ -552,15 +632,18 @@ class _EventsPageState extends State<EventsPage>
                 rowHeight: 30,
                 firstDay: firstDay,
                 lastDay: lastDay,
-                currentDay: _selectedDay,
-                focusedDay: _focusedDay,
+                currentDay:
+                    Provider.of<AppState>(context, listen: false).selectedDay,
+                focusedDay:
+                    Provider.of<AppState>(context, listen: false).selectedDay,
                 onDaySelected: _onDaySelected),
           ),
           Container(
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  Text("Statistics ${_formattedDate(_selectedDay)}"),
+                  Text(
+                      "Statistics ${_formattedDate(Provider.of<AppState>(context, listen: false).selectedDay)}"),
                 ],
               ),
               color: Colors.amber),
@@ -592,7 +675,8 @@ class _EventsPageState extends State<EventsPage>
   DataRow dataRow(int index) {
     if (index == 0) {
       return DataRow(cells: [
-        DataCell(Text("${_formattedDate(_selectedDay)}",
+        DataCell(Text(
+            "${_formattedDate(Provider.of<AppState>(context, listen: false).selectedDay)}",
             overflow: TextOverflow.ellipsis)),
         DataCell(Text("0 km")),
         DataCell(Text("0h 0m")),
@@ -627,54 +711,49 @@ class _EventsPageState extends State<EventsPage>
           child: TextButton(
               child: Text("Events"),
               style: TextButton.styleFrom(
-                  backgroundColor:
-                      (isEventsEnable) ? Colors.black12 : Colors.white10,
+                  backgroundColor: (_eventsPageTbIndex == 0)
+                      ? Colors.black12
+                      : Colors.white10,
                   shape: const RoundedRectangleBorder(
                       borderRadius: BorderRadius.all(Radius.zero))),
-              onPressed: (isEventsEnable)
-                  ? () {
-                      setState(() {
-                        isEventsEnable = false;
-                        isMapEnable = true;
-                        isCalendarEnable = true;
-                      });
-                    }
-                  : null),
+              onPressed: () {
+                Provider.of<AppState>(context, listen: false)
+                    .eventsPageTbIndex = 0;
+                setState(() {
+                  _eventsPageTbIndex = 0;
+                });
+              }),
         ),
         Padding(
           padding: const EdgeInsets.all(1.0),
         ),
         Expanded(
-          child: TextButton(
-              child: Text("Map"),
-              style: TextButton.styleFrom(
-                  backgroundColor:
-                      (isMapEnable) ? Colors.black12 : Colors.white10,
-                  shape: const RoundedRectangleBorder(
-                      borderRadius: BorderRadius.all(Radius.zero))),
-              onPressed: (isMapEnable)
-                  ? () {
-                      setState(() {
-                        isEventsEnable = true;
-                        isMapEnable = false;
-                        isCalendarEnable = true;
+            child: TextButton(
+          child: Text("Map"),
+          style: TextButton.styleFrom(
+              backgroundColor:
+                  (_eventsPageTbIndex == 1) ? Colors.black12 : Colors.white10,
+              shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.all(Radius.zero))),
+          onPressed: () {
+            Provider.of<AppState>(context, listen: false).eventsPageTbIndex = 1;
+            final trackList =
+                Provider.of<AppState>(context, listen: false).trackList;
+            setState(() {
+              _eventsPageTbIndex = 1;
+              GeoPoint position = (trackList.length > 0)
+                  ? GeoPoint(
+                      latitude: trackList[_selector_index].latitude,
+                      longitude: trackList[_selector_index].longitude)
+                  : GeoPoint(latitude: 43.3197033, longitude: 132.1192263);
 
-                        GeoPoint position = (_trackList.length > 0)
-                            ? GeoPoint(
-                                latitude: _trackList[_selector_index].latitude,
-                                longitude:
-                                    _trackList[_selector_index].longitude)
-                            : GeoPoint(
-                                latitude: 43.3197033, longitude: 132.1192263);
-
-                        mapController = MapController(
-                          initPosition: position,
-                        );
-                        mapController.addObserver(this);
-                      });
-                    }
-                  : null),
-        ),
+              mapController = MapController(
+                initPosition: position,
+              );
+              mapController.addObserver(this);
+            });
+          },
+        )),
         Padding(
           padding: const EdgeInsets.all(1.0),
         ),
@@ -682,19 +761,18 @@ class _EventsPageState extends State<EventsPage>
           child: TextButton(
               child: Text("Calendar"),
               style: TextButton.styleFrom(
-                  backgroundColor:
-                      (isCalendarEnable) ? Colors.black12 : Colors.white10,
+                  backgroundColor: (_eventsPageTbIndex == 2)
+                      ? Colors.black12
+                      : Colors.white10,
                   shape: const RoundedRectangleBorder(
                       borderRadius: BorderRadius.all(Radius.zero))),
-              onPressed: (isCalendarEnable)
-                  ? () {
-                      setState(() {
-                        isEventsEnable = true;
-                        isMapEnable = true;
-                        isCalendarEnable = false;
-                      });
-                    }
-                  : null),
+              onPressed: () {
+                Provider.of<AppState>(context, listen: false)
+                    .eventsPageTbIndex = 2;
+                setState(() {
+                  _eventsPageTbIndex = 2;
+                });
+              }),
         ),
       ]),
     );

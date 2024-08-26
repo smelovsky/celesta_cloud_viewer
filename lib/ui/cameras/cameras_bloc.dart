@@ -30,19 +30,28 @@ class CamerasBloc extends Bloc<CamerasEvent, CamerasState> {
         viewState: CamerasViewState.inprogress,
       ));
 
-      if (await _login(event.host, event.login, event.password)) {
-        if (await _getDevices(event.host)) {
+      //print("STEP 1");
+      if (!await _login(event.host, event.login, event.password)) {
+        if (state.viewState != CamerasViewState.aborted) {
+          emit(state.copyWithState(viewState: CamerasViewState.failed));
+        }
+        return;
+      }
+
+      //print("STEP 2");
+
+      if (!await _getDevices(event.host)) {
+        if (state.viewState != CamerasViewState.aborted) {
+          emit(state.copyWithState(viewState: CamerasViewState.failed));
+        }
+        return;
+      }
+
           emit(state.copyWithStateAndDeviceListAndAuthToken(
             viewState: CamerasViewState.success,
             deviceList: deviceList,
             authToken: authToken,
           ));
-        }
-      } else {
-        if (state.viewState != CamerasViewState.aborted) {
-          emit(state.copyWithState(viewState: CamerasViewState.failed));
-        }
-      }
     });
 
     on<AbortCamerasEvent>((event, emit) {

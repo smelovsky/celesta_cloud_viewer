@@ -64,11 +64,11 @@ class IsolatedNetworkRequestGetMediaUrl {
   );
 }
 
-class IsolatedNetworkRequestGetThumbnail {
+class IsolatedNetworkRequestGetRtmpsSmil {
   final Dio dio;
   final String session_id;
 
-  IsolatedNetworkRequestGetThumbnail(
+  IsolatedNetworkRequestGetRtmpsSmil(
     this.dio,
     this.session_id,
   );

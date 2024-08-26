@@ -3,8 +3,6 @@ part of 'events_bloc.dart';
 @immutable
 abstract class EventsEvent {}
 
-////////////////////////////////////////////////////////////////////////////////
-
 class LoginEventsEvent extends EventsEvent {
   final String host;
   final String email;
@@ -21,15 +19,12 @@ class LoginEventsEvent extends EventsEvent {
   String toString() => 'LoginEventsEvent { }';
 }
 
-////////////////////////////////////////////////////////////////////////////////
-
 class ConnectEventsEvent extends EventsEvent {
   String host;
   String login;
   String password;
   String cameraName;
   String session_id;
-  String device_id;
 
   ConnectEventsEvent({
     required this.host,
@@ -37,7 +32,6 @@ class ConnectEventsEvent extends EventsEvent {
     required this.password,
     required this.cameraName,
     required this.session_id,
-    required this.device_id,
   });
 
   @override
@@ -49,14 +43,19 @@ class AbortEventsEvent extends EventsEvent {
   String toString() => 'AbortEventsEvent { }';
 }
 
-class GeoEventsEvent extends EventsEvent {
-  double latitude;
-  double longitude;
+class GetRtmpsSmilEvent extends EventsEvent {
+  String host;
+  String session_id;
+  String videoEventId;
+  String videoName;
 
-  GeoEventsEvent({required this.latitude, required this.longitude});
+  GetRtmpsSmilEvent({
+    required this.host,
+    required this.session_id,
+    required this.videoEventId,
+    required this.videoName,
+  });
 
   @override
-  String toString() => 'GeoEventsEvent { }';
+  String toString() => 'GetEventMediaUrlEvent { }';
 }
-
-////////////////////////////////////////////////////////////////////////////////

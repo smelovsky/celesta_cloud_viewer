@@ -7,7 +7,9 @@ import 'package:celesta_cloud_viewer/freezed/responses/cloud_response.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:html_parser_plus/html_parser_plus.dart';
 import 'package:quiver/time.dart';
+import 'package:xml/xml.dart';
 
 class CloudDioNetworkManager {
   Future performRequestLogin(
@@ -102,6 +104,26 @@ class CloudDioNetworkManager {
       final response = await CancellableIsolate.run(
         () {
           return compute(executeRequestGetMediaUrl, isolatedRequest);
+        },
+        cancellationToken,
+      );
+
+      return response;
+    } on CancelledException {
+      return "";
+    } on DioException catch (e) {
+      return e.response?.data;
+    }
+  }
+
+  Future performRequestGetEventMediaUrl(
+    IsolatedNetworkRequestGetRtmpsSmil isolatedRequest,
+    CancellationToken cancellationToken,
+  ) async {
+    try {
+      final response = await CancellableIsolate.run(
+        () {
+          return compute(executeRequestGetRtmpsSmil, isolatedRequest);
         },
         cancellationToken,
       );
@@ -245,20 +267,67 @@ Future executeRequestGetMediaUrl(
       options: Options(headers: {"Session-Id": isolatedRequest.session_id}),
     );
 
-    print("executeRequestGetMediaUrl: ${response.data}");
-
+/*
     final media_url = response.data["media_url"];
     final media_url_element = media_url[0];
     final rtmp = media_url_element["rtmp"];
     final private = rtmp["private"];
 
+    print("private: ${private}");
     return private;
+*/
+    final mediaUrlContainer = MediaUrlContainer.fromJson(response.data);
+    if (mediaUrlContainer != null) {
+      if (mediaUrlContainer.media_url != null) {
+        if (mediaUrlContainer.media_url!.length > 0) {
+          if (mediaUrlContainer.media_url![0] != null) {
+            if (mediaUrlContainer.media_url![0].rtmp != null) {
+              if (mediaUrlContainer.media_url![0].rtmp!.private != null) {
+                return mediaUrlContainer.media_url![0].rtmp!.private;
+              }
+            }
+          }
+        }
+      }
+    }
 
-    //return MewdiaUrl.fromJson(response.data);
+    return "";
   } on DioException catch (error) {
-    var errorMessage = error.response?.data["message"];
-    //print("errorMessage: ${errorMessage}");
+    //var errorMessage = error.response?.data["message"];
+    return Future.error(error);
+  }
+}
 
+Future executeRequestGetRtmpsSmil(
+  IsolatedNetworkRequestGetRtmpsSmil isolatedRequest,
+) async {
+  try {
+    final params = {
+      "session_id": isolatedRequest.session_id,
+      "startTime": 0,
+    };
+
+    final response = await isolatedRequest.dio.get(
+      '/rtmp.smil',
+      queryParameters: params,
+    );
+
+    print("response.data: ${response.data}");
+
+    final document = XmlDocument.parse(response.data);
+
+    final metas = document.findAllElements('meta');
+    final base = metas.first.getAttribute('base');
+
+    final videos = document.findAllElements('video');
+    final src = videos.first.getAttribute('src');
+
+    final videoUrl = "${base}/${src}";
+    print("videoUrl: ${videoUrl}");
+
+    return videoUrl;
+  } on DioException catch (error) {
+    //var errorMessage = error.response?.data["message"];
     return Future.error(error);
   }
 }

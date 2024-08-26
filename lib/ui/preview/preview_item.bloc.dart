@@ -27,18 +27,19 @@ class PreviewItemBloc extends Bloc<PreviewItemEvent, PreviewItemState> {
         screenState: PreviewItemScreenState.inprogress,
       ));
 
-      if (await _getMediaUrl(event.host, event.session_id, event.device_id)) {
-        emit(state.copyWithStateAndMediaUrl(
-          screenState: PreviewItemScreenState.success,
-          mediaUrl: mediaUrl,
-        ));
-      } else {
+      if (!await _getMediaUrl(event.host, event.session_id, event.device_id)) {
         if (state.screenState != PreviewItemScreenState.aborted) {
           emit(state.copyWithStateAndError(
               screenState: PreviewItemScreenState.failed,
               errorMessage: errorMessage));
         }
       }
+      emit(state.copyWithStateAndMediaUrl(
+          screenState: PreviewItemScreenState.success,
+          mediaUrl: mediaUrl,
+          errorMessage: errorMessage));
+
+      return;
     });
 
     on<AbortPreviewItemEvent>((event, emit) async {
@@ -54,7 +55,7 @@ class PreviewItemBloc extends Bloc<PreviewItemEvent, PreviewItemState> {
   }
 
   Future<bool> _getMediaUrl(
-      String cloudUrl, String session_id, String device_name) async {
+      String cloudUrl, String session_id, String device_id) async {
     final Map<String, dynamic> _headers = {
       HttpHeaders.contentTypeHeader: 'application/json; charset=UTF-8'
     };
@@ -62,7 +63,7 @@ class PreviewItemBloc extends Bloc<PreviewItemEvent, PreviewItemState> {
     Dio dio = Dio() // Provide a dio instance
       ..options.connectTimeout = Duration(seconds: 15)
       ..options.receiveTimeout = Duration(seconds: 15)
-      ..options.baseUrl = cloudUrl + "devices/" + device_name
+      ..options.baseUrl = cloudUrl + "devices/" + device_id
       ..options.headers = _headers
       ..interceptors.add(LogInterceptor(responseBody: true));
 
@@ -80,10 +81,21 @@ class PreviewItemBloc extends Bloc<PreviewItemEvent, PreviewItemState> {
 
       return true;
     } else {
-      final message = response["message"];
-      errorMessage = message;
+      if (response != null) {
+        final message = response["message"];
+        if (message != null) {
+          errorMessage = message;
+          mediaUrl = "";
+        } else {
+          errorMessage = "Unknown error";
+          mediaUrl = "";
+        }
+      } else {
+        errorMessage = "Unknown error";
+        mediaUrl = "";
+      }
 
-      return false;
+      return true;
     }
   }
 }

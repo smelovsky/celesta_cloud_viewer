@@ -18,16 +18,16 @@ class EventsBloc extends Bloc<EventsEvent, EventsState> {
   AuthToken authToken = AuthToken(session_id: "", session_type: "");
   List<VideoEvent> eventList = [];
   List<GeoPoint> trackList = [];
-  String mediaUrl = "";
   String errorMessage = "";
+  String videoUrl = "";
 
   final CloudDioNetworkManager _networkManager = CloudDioNetworkManager();
 
   late IsolatedNetworkRequestLogin isolatedNetworkRequestLogin;
   late IsolatedNetworkRequestGetEvents isolatedNetworkRequestGetEvents;
   late IsolatedNetworkRequestGetNaviTrack isolatedNetworkRequestGetNaviTrack;
-  late IsolatedNetworkRequestGetThumbnail isolatedNetworkRequestGetThumbnail;
   late IsolatedNetworkRequestGetMediaUrl isolatedNetworkRequestGetMediaUrl;
+  late IsolatedNetworkRequestGetRtmpsSmil isolatedNetworkRequestGetRtmpsSmil;
 
   late CancellationToken cancellationToken;
 
@@ -71,16 +71,21 @@ class EventsBloc extends Bloc<EventsEvent, EventsState> {
 
       //print("STEP 4");
 
-      if (!await _getMediaUrl(
-          event.host, authToken.session_id, event.cameraName)) {
-        if (state.viewState != EventsViewState.aborted) {
-          emit(state.copyWithState(viewState: EventsViewState.failed));
+/*
+      for (var videoEvent in eventList) {
+        print("event= id:${videoEvent.id}, name:${videoEvent.name}");
+        if (videoEvent.videos != null) {
+          videoEvent.videos!.forEach((video) {
+            print("${video.name}");
+
+            if (video.name != null) {
+              _getEventMediaUrl(event.host, authToken.session_id,
+                  videoEvent.id!, video.name!);
+            }
+          });
         }
-        return;
       }
-
-      //print("STEP 5 ${mediaUrl}");
-
+*/
       emit(state.copyWithStateAndContent(
           viewState: EventsViewState.success,
           eventList: eventList,
@@ -88,7 +93,6 @@ class EventsBloc extends Bloc<EventsEvent, EventsState> {
           latitude: latitude,
           longitude: longitude,
           authToken: authToken,
-          mediaUrl: mediaUrl,
           errorMessage: errorMessage));
     });
 
@@ -96,6 +100,23 @@ class EventsBloc extends Bloc<EventsEvent, EventsState> {
       cancellationToken.cancel();
 
       emit(state.copyWithState(viewState: EventsViewState.aborted));
+    });
+
+    on<GetRtmpsSmilEvent>((event, emit) async {
+      emit(state.copyWithStateAndVideoUrls(
+        viewState: EventsViewState.video,
+        videoUrl: "",
+      ));
+
+      if (!await _getRtmpsSmil(
+          event.host, event.session_id, event.videoEventId, event.videoName)) {
+        return;
+      }
+
+      emit(state.copyWithStateAndVideoUrls(
+        viewState: EventsViewState.video,
+        videoUrl: videoUrl,
+      ));
     });
   }
 
@@ -192,8 +213,8 @@ class EventsBloc extends Bloc<EventsEvent, EventsState> {
     return true;
   }
 
-  Future<bool> _getMediaUrl(
-      String cloudUrl, String session_id, String device_name) async {
+  Future<bool> _getRtmpsSmil(String cloudUrl, String session_id,
+      String videoEventId, String videoName) async {
     final Map<String, dynamic> _headers = {
       HttpHeaders.contentTypeHeader: 'application/json; charset=UTF-8'
     };
@@ -201,34 +222,33 @@ class EventsBloc extends Bloc<EventsEvent, EventsState> {
     Dio dio = Dio() // Provide a dio instance
       ..options.connectTimeout = Duration(seconds: 15)
       ..options.receiveTimeout = Duration(seconds: 15)
-      ..options.baseUrl = cloudUrl + "devices/" + device_name
+      ..options.baseUrl =
+          "${cloudUrl}/videoevents/${videoEventId}/videos/${videoName}"
       ..options.headers = _headers
       ..interceptors.add(LogInterceptor(responseBody: true));
 
-    isolatedNetworkRequestGetMediaUrl =
-        IsolatedNetworkRequestGetMediaUrl(dio, session_id);
+    isolatedNetworkRequestGetRtmpsSmil =
+        IsolatedNetworkRequestGetRtmpsSmil(dio, session_id);
     cancellationToken = CancellationToken();
-    final response = await _networkManager.performRequestGetMediaUrl(
-        isolatedNetworkRequestGetMediaUrl, cancellationToken);
+    final response = await _networkManager.performRequestGetEventMediaUrl(
+        isolatedNetworkRequestGetRtmpsSmil, cancellationToken);
 
     if (response.runtimeType == String) {
-      //mediaUrl = 'https://media.w3.org/2010/05/sintel/trailer.mp4';
-      mediaUrl = response;
-
+      videoUrl = response;
       return true;
     } else {
       if (response != null) {
         final message = response["message"];
         if (message != null) {
           errorMessage = message;
-          mediaUrl = "";
+          videoUrl = "";
         } else {
           errorMessage = "Unknown error";
-          mediaUrl = "";
+          videoUrl = "";
         }
       } else {
         errorMessage = "Unknown error";
-        mediaUrl = "";
+        videoUrl = "";
       }
 
       return true;

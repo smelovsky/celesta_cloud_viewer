@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_osm_plugin/flutter_osm_plugin.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../app_state.dart';
@@ -42,6 +41,8 @@ class _CamerasPageState extends State<CamerasPage> with RestorationMixin {
   @override
   void initState() {
     super.initState();
+
+    print("_CamerasPageState initState ${_cameraDeviceList.length}");
 
     _camerasBloc = BlocProvider.of<CamerasBloc>(context);
 
@@ -183,7 +184,7 @@ class _CamerasPageState extends State<CamerasPage> with RestorationMixin {
 
     _cameraDeviceList.forEach((item) {
       if (camerasFilter.isEmpty ||
-          item.device_display_name.contains(camerasFilter)) {
+          item.device_display_name!.contains(camerasFilter)) {
         _cameraDeviceListWithFilter.add(item);
       }
     });
@@ -191,6 +192,8 @@ class _CamerasPageState extends State<CamerasPage> with RestorationMixin {
 
   Widget _successView(String session_id) {
     final _node = FocusScope.of(context);
+
+    var x = false;
 
     return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8.0),
@@ -239,13 +242,10 @@ class _CamerasPageState extends State<CamerasPage> with RestorationMixin {
                             final Future<SharedPreferences> _prefs =
                                 SharedPreferences.getInstance();
                             final SharedPreferences prefs = await _prefs;
-                            prefs.setString('camera_name', item.device_name);
-                            prefs.setString('device_id', item.device_id);
-
-                            print("item.device_id: ${item.device_id}");
+                            prefs.setString('camera_name', item.device_name!);
 
                             Provider.of<AppState>(context, listen: false)
-                                .cameraName = item.device_name;
+                                .cameraName = item.device_name!;
                             Provider.of<AppState>(context, listen: false)
                                 .isEventsInited = false;
 
@@ -266,14 +266,13 @@ class _CamerasPageState extends State<CamerasPage> with RestorationMixin {
                           },
                           onTap: (item) {
                             //_camerasBloc?.add(PreviewCamerasEvent());
-
                             showDialog(
                               context: context,
                               builder: (_) => PreviewItem(
                                   session_id: session_id,
-                                  device_name: item.device_name,
+                                  device_name: item.device_name!,
                                   recent_geo_position:
-                                      item.recent_geo_position),
+                                      item.recent_geo_position!),
                             );
                           });
                     })),

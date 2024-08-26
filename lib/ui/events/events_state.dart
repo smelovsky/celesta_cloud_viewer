@@ -6,7 +6,7 @@ enum EventsViewState {
   inprogress,
   aborted,
   failed,
-  preview,
+  video,
 }
 
 @immutable
@@ -17,7 +17,7 @@ class EventsState {
   final List<GeoPoint> trackList;
   final double latitude;
   final double longitude;
-  final String mediaUrl;
+  final String videoUrl;
   final String errorMessage;
 
   EventsState({
@@ -27,7 +27,7 @@ class EventsState {
     required this.trackList,
     required this.latitude,
     required this.longitude,
-    required this.mediaUrl,
+    required this.videoUrl,
     required this.errorMessage,
   });
 
@@ -39,7 +39,7 @@ class EventsState {
       trackList: [],
       latitude: 0.0,
       longitude: 0.0,
-      mediaUrl: "",
+      videoUrl: "",
       errorMessage: "",
     );
   }
@@ -54,7 +54,7 @@ class EventsState {
       trackList: [],
       latitude: 0.0,
       longitude: 0.0,
-      mediaUrl: "",
+      videoUrl: "",
       errorMessage: "",
     );
   }
@@ -66,7 +66,6 @@ class EventsState {
     required double latitude,
     required double longitude,
     required AuthToken authToken,
-    required String mediaUrl,
     required String errorMessage,
   }) {
     return EventsState(
@@ -76,8 +75,24 @@ class EventsState {
       trackList: trackList,
       latitude: latitude,
       longitude: longitude,
-      mediaUrl: mediaUrl,
+      videoUrl: "",
       errorMessage: errorMessage,
+    );
+  }
+
+  EventsState copyWithStateAndVideoUrls({
+    required EventsViewState viewState,
+    required String videoUrl,
+  }) {
+    return EventsState(
+      viewState: viewState,
+      authToken: AuthToken(session_id: "", session_type: ""),
+      eventList: [],
+      trackList: [],
+      latitude: 0.0,
+      longitude: 0.0,
+      videoUrl: videoUrl,
+      errorMessage: "",
     );
   }
 }

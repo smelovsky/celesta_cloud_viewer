@@ -38,7 +38,7 @@ class CameraItem extends StatelessWidget {
             if (item.recent_thumb_url == "")
               Text("No thumbnail")
             else
-              Image.network(item.recent_thumb_url, height: 60),
+              Image.network(item.recent_thumb_url!, height: 60),
             Expanded(
                 child: Container(
               padding: EdgeInsets.fromLTRB(5.0, 0.0, 0.0, 00.0),
@@ -46,18 +46,13 @@ class CameraItem extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      item.device_display_name,
+                      item.device_display_name!,
                       overflow: TextOverflow.ellipsis,
                       textScaler: TextScaler.linear(0.8),
                     ),
+                    if (item.recent_geo_position?.length == 2)
                     Text(
-                      item.device_id,
-                      overflow: TextOverflow.ellipsis,
-                      textScaler: TextScaler.linear(0.8),
-                    ),
-                    if (item.recent_geo_position.length == 2)
-                      Text(
-                          "${item.recent_geo_position[0]}, ${item.recent_geo_position[1]}")
+                          "${item.recent_geo_position?[0]}, ${item.recent_geo_position?[1]}")
                     else
                       Text("(no geo position)"),
                   ]),
