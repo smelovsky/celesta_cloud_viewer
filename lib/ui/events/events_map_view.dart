@@ -2,6 +2,9 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_osm_plugin/flutter_osm_plugin.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
+import 'package:provider/provider.dart';
+
+import '../../app_state.dart';
 
 class EventsMap extends StatefulWidget {
   MapController mapController;
@@ -40,6 +43,31 @@ class _EventsMap extends State<EventsMap> {
         width: widget.width,
         child: Stack(children: [
           OSMFlutter(
+            onMapIsReady: (isReady) {
+              print("onMapIsReady:");
+              if (isReady) {
+                final trackList =
+                    Provider.of<AppState>(context, listen: false).trackList;
+                final selectorIndex =
+                    Provider.of<AppState>(context, listen: false).selectorIndex;
+
+                if (trackList.length > 0) {
+                  GeoPoint position = GeoPoint(
+                      latitude: trackList[selectorIndex].latitude,
+                      longitude: trackList[selectorIndex].longitude);
+
+                  widget.mapController.changeLocation(position);
+
+                  widget.mapController.drawRoadManually(
+                      trackList,
+                      RoadOption(
+                        zoomInto: true,
+                        roadColor: Colors.green,
+                        roadWidth: 10,
+                      ));
+                }
+              }
+            },
             controller: widget.mapController,
             mapIsLoading: Center(
               child: CircularProgressIndicator(),

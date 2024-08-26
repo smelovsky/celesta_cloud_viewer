@@ -118,6 +118,10 @@ class EventsBloc extends Bloc<EventsEvent, EventsState> {
         videoUrl: videoUrl,
       ));
     });
+
+    on<RefreshEventsEvent>((event, emit) {
+      emit(state.copyWithState(viewState: EventsViewState.refresh));
+    });
   }
 
   @override

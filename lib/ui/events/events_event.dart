@@ -59,3 +59,8 @@ class GetRtmpsSmilEvent extends EventsEvent {
   @override
   String toString() => 'GetEventMediaUrlEvent { }';
 }
+
+class RefreshEventsEvent extends EventsEvent {
+  @override
+  String toString() => 'RefreshEventsEvent { }';
+}

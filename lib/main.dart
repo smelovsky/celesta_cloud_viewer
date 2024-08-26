@@ -34,6 +34,7 @@ void main() {
     eventList: [],
     trackList: [],
     selectedEventIndex: -1,
+    selectorIndex: 0,
   );
 
   Bloc.observer = AppBlocObserver();

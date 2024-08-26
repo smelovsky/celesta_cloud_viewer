@@ -28,6 +28,7 @@ class AppState {
     required this.eventList,
     required this.trackList,
     required this.selectedEventIndex,
+    required this.selectorIndex,
   });
 
   bool keepScreenOn = true;
@@ -52,4 +53,5 @@ class AppState {
   List<VideoEvent> eventList = [];
   List<GeoPoint> trackList = [];
   int selectedEventIndex = -1;
+  int selectorIndex = 0;
 }

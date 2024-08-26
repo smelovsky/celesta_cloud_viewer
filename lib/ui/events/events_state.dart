@@ -7,6 +7,7 @@ enum EventsViewState {
   aborted,
   failed,
   video,
+  refresh,
 }
 
 @immutable

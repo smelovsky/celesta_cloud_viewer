@@ -26,8 +26,7 @@ class EventsPage extends StatefulWidget {
   _EventsPageState createState() => _EventsPageState();
 }
 
-class _EventsPageState extends State<EventsPage>
-    with RestorationMixin, OSMMixinObserver {
+class _EventsPageState extends State<EventsPage> with RestorationMixin {
   EventsBloc? _eventsBloc;
 
   String cameraName = "";
@@ -76,14 +75,20 @@ class _EventsPageState extends State<EventsPage>
         Provider.of<AppState>(context, listen: false).isEventsInited;
     final session_id = Provider.of<AppState>(context, listen: false).session_id;
 
-    mapController = MapController(
-      initPosition: GeoPoint(latitude: 43.3197033, longitude: 132.1192263),
-    );
+    final trackList = Provider.of<AppState>(context, listen: false).trackList;
+    final selectorIndex =
+        Provider.of<AppState>(context, listen: false).selectorIndex;
+    _currentSliderValue = selectorIndex.toDouble();
 
-    if (Provider.of<AppState>(context, listen: false).eventsPageTbIndex == 1) {
-      _eventsPageTbIndex = 0;
-      Provider.of<AppState>(context, listen: false).eventsPageTbIndex == 0;
-    }
+    GeoPoint position = ((trackList.length > 0))
+        ? GeoPoint(
+            latitude: trackList[selectorIndex].latitude,
+            longitude: trackList[selectorIndex].longitude)
+        : GeoPoint(latitude: 43.3197033, longitude: 132.1192263);
+
+    mapController = MapController(
+      initPosition: position,
+    );
 
     if (!isEventsInited) {
       _eventsBloc!.add(ConnectEventsEvent(
@@ -95,7 +100,9 @@ class _EventsPageState extends State<EventsPage>
       ));
 
       Provider.of<AppState>(context, listen: false).isEventsInited = true;
-    } else {}
+    } else {
+      _eventsBloc!.add(RefreshEventsEvent());
+    }
   }
 
   @override
@@ -106,37 +113,8 @@ class _EventsPageState extends State<EventsPage>
     registerForRestoration(_obscureText, 'obscure_text');
   }
 
-  @override
-  Future<void> mapIsReady(bool isReady) async {
-    print("mapIsReady: ${isReady}");
-    if (isReady) {
-      isMapControllerInited = true;
-
-      final trackList = Provider.of<AppState>(context, listen: false).trackList;
-      print("trackList: ${trackList.length}");
-
-      if (trackList.length > 0) {
-        GeoPoint position = GeoPoint(
-            latitude: trackList[_selector_index].latitude,
-            longitude: trackList[_selector_index].longitude);
-
-        mapController.changeLocation(position);
-      }
-
-      mapController.drawRoadManually(
-          trackList,
-          RoadOption(
-            zoomInto: true,
-            roadColor: Colors.green,
-            roadWidth: 10,
-          ));
-    }
-  }
-
   List<String> _getEventsForDay(DateTime day) {
     List<String> events = [];
-
-    //Provider.of<AppState>(context, listen: false).selectedEventIndex = -1;
 
     final eventList = Provider.of<AppState>(context, listen: false).eventList;
     eventList.forEach((event) {
@@ -225,6 +203,22 @@ class _EventsPageState extends State<EventsPage>
 
           case EventsViewState.inprogress:
             return _inprogressView();
+
+          case EventsViewState.refresh:
+            final trackList =
+                Provider.of<AppState>(context, listen: false).trackList;
+
+            print("EventsViewState.refresh: ${trackList.length}");
+
+            if (trackList.length > 0) {
+              GeoPoint position = GeoPoint(
+                  latitude: trackList[_selector_index].latitude,
+                  longitude: trackList[_selector_index].longitude);
+
+              mapController.changeLocation(position);
+            }
+
+            return _successView();
 
           case EventsViewState.video:
             Provider.of<AppState>(context, listen: false).videoUrl =
@@ -315,7 +309,6 @@ class _EventsPageState extends State<EventsPage>
   }
 
   Widget _successView() {
-    final eventsPageTbIndex = _eventsPageTbIndex;
     if (_eventsPageTbIndex == 0) {
       return showEventsTab();
     } else if (_eventsPageTbIndex == 1) {
@@ -493,6 +486,8 @@ class _EventsPageState extends State<EventsPage>
     final selectedEventIndex =
         Provider.of<AppState>(context, listen: false).selectedEventIndex;
 
+    print("showMapTab");
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2.0),
       child: Column(
@@ -567,6 +562,8 @@ class _EventsPageState extends State<EventsPage>
                 setState(() {
                   _currentSliderValue = value;
                   _selector_index = value.toInt();
+                  Provider.of<AppState>(context, listen: false).selectorIndex =
+                      _selector_index;
 
                   GeoPoint position = GeoPoint(
                       latitude: trackList[_selector_index].latitude,
@@ -811,7 +808,6 @@ class _EventsPageState extends State<EventsPage>
               mapController = MapController(
                 initPosition: position,
               );
-              mapController.addObserver(this);
             });
           },
         )),
